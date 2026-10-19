@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Listing Studio — local-first listing writer</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:rgba(255,255,255,.045); --line:rgba(255,255,255,.10);
+    --ink:#e8edf3; --mut:#93a1b1; --amber:#f0b429; --teal:#3fd0c9; --bad:#ff6b6b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    color:var(--ink);background:
+      radial-gradient(1100px 600px at 12% -10%,#1c2b3a 0%,transparent 60%),
+      radial-gradient(900px 500px at 95% 0%,#2a1f13 0%,transparent 55%),var(--bg);
+    min-height:100vh}
+  header{padding:22px 26px 6px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  h1{margin:0;font-size:22px;letter-spacing:.2px}
+  h1 span{color:var(--amber)}
+  .sub{color:var(--mut);font-size:13px}
+  .badge{margin-left:auto;font-size:12px;color:var(--mut);border:1px solid var(--line);
+    border-radius:999px;padding:4px 12px;background:var(--panel)}
+  .badge b{color:var(--teal)}
+  main{display:grid;grid-template-columns:minmax(320px,420px) 1fr;gap:18px;padding:14px 26px 40px}
+  @media(max-width:900px){main{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px 16px 18px;
+    backdrop-filter:blur(8px)}
+  .card h2{margin:0 0 12px;font-size:13px;text-transform:uppercase;letter-spacing:.09em;color:var(--mut);
+    font-weight:600}
+  label{display:block;font-size:12px;color:var(--mut);margin:10px 0 4px}
+  input,select,textarea{width:100%;padding:9px 11px;border-radius:10px;border:1px solid var(--line);
+    background:rgba(0,0,0,.28);color:var(--ink);font:inherit}
+  textarea{min-height:64px;resize:vertical}
+  input[type=file]{padding:7px}
+  button{cursor:pointer;font:inherit;font-weight:600;padding:10px 16px;border-radius:10px;
+    border:1px solid transparent;background:linear-gradient(180deg,#f4bd3c,#dc9f14);color:#20160a}
+  button.ghost{background:transparent;border-color:var(--line);color:var(--ink);font-weight:500}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button.small{padding:5px 10px;font-size:12px;font-weight:500}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .bar{display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap}
+  .status{margin-top:12px;font-size:13px;color:var(--mut);min-height:20px}
+  .status.err{color:var(--bad)}
+  .out{position:relative}
+  .title-out{font-size:19px;font-weight:650;line-height:1.35;margin:2px 0 10px}
+  .counter{font-size:11px;color:var(--mut);font-weight:400;margin-left:6px}
+  .desc{white-space:pre-wrap;color:#d7e0ea}
+  .tags{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0}
+  .tag{font-size:12px;border:1px solid var(--line);background:rgba(63,208,201,.10);
+    color:var(--teal);border-radius:999px;padding:3px 10px}
+  .price{font-size:15px;color:var(--amber);font-weight:650}
+  .mut{color:var(--mut);font-size:12.5px}
+  .spinner{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.25);
+    border-top-color:var(--amber);border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:7px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--mut);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+  .empty{color:var(--mut);font-size:13.5px;padding:26px 4px;text-align:center;line-height:1.7}
+  .kv{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  .kv span{font-size:12px;color:var(--mut);border:1px solid var(--line);border-radius:999px;padding:2px 9px}
+  details{margin-top:10px}
+  summary{cursor:pointer;color:var(--mut);font-size:12.5px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Listing <span>Studio</span></h1>
+  <div class="sub">turns a pile of item notes into marketplace-ready listings — offline, on your own machine</div>
+  <div class="badge" id="health">checking models…</div>
+</header>
+
+<main>
+  <section class="card">
+    <h2>1 · The item</h2>
+    <label>Marketplace</label>
+    <select id="platform"></select>
+    <label>Item name <span class="mut">(required)</span></label>
+    <input id="item" placeholder="e.g. vintage wooden birdhouse">
+    <div class="row">
+      <div><label>Category</label><input id="category" placeholder="garden decor"></div>
+      <div><label>Condition</label><select id="condition"></select></div>
+    </div>
+    <div class="row">
+      <div><label>Colours</label><input id="colors" placeholder="weathered brown"></div>
+      <div><label>Materials</label><input id="materials" placeholder="pine wood"></div>
+    </div>
+    <label>Details the model should not invent</label>
+    <textarea id="details" placeholder="roof lifts off for cleaning; hanging hook on the back; 28 cm tall"></textarea>
+    <label>Seller notes (tone, audience, provenance)</label>
+    <input id="notes" placeholder="made by a local carpenter, for garden lovers">
+    <label>Photo <span class="mut">(optional — needs a vision model)</span></label>
+    <input id="photo" type="file" accept="image/*">
+    <div class="bar">
+      <button id="go">✎ Write listing</button>
+      <button id="clear" class="ghost small">Clear</button>
+    </div>
+    <div class="status" id="status"></div>
+  </section>
+
+  <section class="card out">
+    <h2>2 · The listing</h2>
+    <div id="result"><div class="empty">Fill in the item and hit <b>Write listing</b>.<br>
+      Every model call goes to Ollama on <code>127.0.0.1</code> — your inventory never leaves this machine.</div></div>
+  </section>
+
+  <section class="card" style="grid-column:1/-1">
+    <h2>3 · Saved listings</h2>
+    <div class="bar" style="margin:0 0 12px">
+      <button class="ghost small" id="refresh">↻ Refresh</button>
+      <button class="ghost small" id="csv">⬇ Export all as CSV</button>
+      <span class="mut" id="count"></span>
+    </div>
+    <div id="history"><div class="empty">Nothing saved yet.</div></div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+let platforms = {}, conditions = [], currency = "GBP";
+
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} :
+    {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  return r.json();
+}
+
+function say(msg, err) {
+  $('status').innerHTML = msg;
+  $('status').className = 'status' + (err ? ' err' : '');
+}
+
+async function boot() {
+  const d = await api('/api/platforms');
+  platforms = d.platforms; currency = d.currency; conditions = d.conditions;
+  $('platform').innerHTML = Object.entries(platforms).map(([k,v]) =>
+    `<option value="${k}">${esc(v.label)} — ${v.title_max} char title${v.tags?`, ${v.tags} tags`:''}</option>`).join('');
+  $('condition').innerHTML = conditions.map(c => `<option>${esc(c)}</option>`).join('');
+  const h = await api('/api/health');
+  const ok = h.vision_ready, wk = h.writer_ready;
+  $('health').innerHTML = h.ollama
+    ? `writer <b>${esc(h.writer_model)}</b> ${wk?'ready':'missing'} · vision <b>${esc(h.vision_model)}</b> ${ok?'ready':'missing'}`
+    : `<b style="color:#ff6b6b">Ollama not reachable</b> on 127.0.0.1:11434`;
+  loadHistory();
+}
+
+function readPhoto() {
+  return new Promise(res => {
+    const f = $('photo').files[0];
+    if (!f) return res(null);
+    const fr = new FileReader();
+    fr.onload = () => res(fr.result);
+    fr.readAsDataURL(f);
+  });
+}
+
+$('go').onclick = async () => {
+  if (!$('item').value.trim()) { say('Give the item a name first.', true); return; }
+  $('go').disabled = true;
+  const t0 = Date.now();
+  say(`<span class="spinner"></span> local model is writing… this runs on your CPU, give it ~15s`);
+  const image = await readPhoto();
+  const payload = {
+    platform: $('platform').value,
+    image,
+    notes: $('notes').value,
+    currency,
+    attributes: {
+      item: $('item').value, category: $('category').value,
+      colors: $('colors').value, materials: $('materials').value,
+      condition: $('condition').value, details: $('details').value,
+    }
+  };
+  const d = await api('/api/generate', payload);
+  $('go').disabled = false;
+  if (!d.ok) { say('Error: ' + esc(d.error), true); return; }
+  render(d.listing);
+  say(`Done in ${d.listing.seconds}s on ${esc(d.listing.source)} input — saved to history.`);
+  loadHistory();
+};
+
+$('clear').onclick = () => {
+  ['item','category','colors','materials','details','notes','photo'].forEach(k => $(k).value = '');
+  say('');
+};
+
+function render(L) {
+  const tags = L.tags.length ? `<div class="tags">${L.tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>`
+    : `<div class="mut">no tags on this marketplace</div>`;
+  const price = L.price_low || L.price_high
+    ? `<div class="price">${esc(L.currency)} ${L.price_low ?? '?'} – ${L.price_high ?? '?'}</div>
+       <div class="mut">${esc(L.price_note || '')}</div>` : '';
+  const attrs = L.attributes || {};
+  const chips = Object.entries(attrs).filter(([k,v]) => v && k !== 'vision')
+    .map(([k,v]) => `<span>${esc(k)}: ${esc(String(v).slice(0,60))}</span>`).join('');
+  $('result').innerHTML = `
+    <div class="kv">${chips}</div>
+    <div class="title-out">${esc(L.title)}<span class="counter">${L.title.length}/${L.limits.title_max} chars</span></div>
+    <div class="bar" style="margin-top:0">
+      <button class="small ghost" onclick="copy('${esc(L.title).replace(/'/g,"\\'")}')">copy title</button>
+      <button class="small ghost" onclick="copy(\`${(L.description||'').replace(/`/g,'')}\`)">copy description</button>
+      <button class="small ghost" onclick="copy(\`${L.tags.join(', ')}\`)">copy tags</button>
+    </div>
+    ${tags}
+    ${price}
+    <p class="desc">${esc(L.description)}</p>
+    <details><summary>raw model output & limits</summary>
+      <div class="mut">platform limit: ${L.limits.title_max} char title, ${L.limits.tags} tags × ${L.limits.tag_max} chars —
+      enforced in Python, not by the model.</div>
+    </details>`;
+}
+
+async function copy(t) {
+  try { await navigator.clipboard.writeText(t); say('Copied.'); }
+  catch { say('Press Ctrl+C — clipboard blocked.', true); }
+}
+
+async function loadHistory() {
+  const d = await api('/api/history');
+  $('count').textContent = d.listings.length ? `${d.listings.length} saved` : '';
+  if (d.listings.length && !$('result').dataset.filled) {
+    // show the most recent listing on load so the page is never blank
+    const r = d.listings[0];
+    const cfg = platforms[r.platform] || {};
+    $('result').dataset.filled = "1";
+    render({platform:r.platform,label:cfg.label,title:r.title,description:r.description,
+            tags:r.tags,price_low:r.price_low,price_high:r.price_high,currency:r.currency,
+            price_note:r.price_note,attributes:r.attributes,seconds:r.seconds,
+            limits:{title_max:cfg.title_max||140,tags:cfg.tags||0,tag_max:cfg.tag_max||20}});
+  }
+  $('history').innerHTML = d.listings.length ? `<table><thead><tr>
+      <th>when</th><th>market</th><th>title</th><th>price</th><th></th></tr></thead><tbody>
+      ${d.listings.map(r => `<tr>
+        <td class="mut">${esc(r.created)}</td>
+        <td>${esc(r.platform)}</td>
+        <td>${esc(r.title)}</td>
+        <td>${r.price_low ? esc(r.currency)+' '+r.price_low+'–'+r.price_high : '—'}</td>
+        <td><button class="small ghost" onclick="del(${r.id})">✕</button></td>
+      </tr>`).join('')}</tbody></table>`
+    : `<div class="empty">Nothing saved yet.</div>`;
+}
+
+async function del(id) { await api('/api/listings/delete', {id}); loadHistory(); }
+$('refresh').onclick = loadHistory;
+$('csv').onclick = () => { window.location = '/api/export.csv'; };
+
+boot();
+</script>
+</body>
+</html>
